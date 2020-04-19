@@ -6,7 +6,7 @@ Installation: `go install github.com/mgnsk/di-container/cmd/initgen`
 
 ### Example
 
-Given an `initgen.go` file:
+Given an `initgen.go` fil which registers unique dependencies and providers in that package:
 ```
 //go:generate initgen
 
@@ -76,6 +76,15 @@ func InitMyService() *myService {
 ```
 
 It is possible to use the container on runtime. See the tests in `container`.
+
+It reports errors when a type is missing a provider function.
+```
+go generate -x ./...
+initgen
+panic: Missing provider for type 'constants.MyInt'
+...
+```
+
 
 
 Example shown in `example` dir. In general: install `initgen` binary, create an `initgen.go` file in the package and run `go generate ./...` and 
