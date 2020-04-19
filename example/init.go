@@ -7,16 +7,19 @@ func initMyInt() constants.MyInt {
 	myint := constants.NewMyInt()
 	return myint
 }
+
 func initMyMultiplier() constants.MyMultiplier {
 	mymultiplier := constants.NewMyMultiplier()
 	return mymultiplier
 }
+
 func initMySentence() MySentence {
 	myint := initMyInt()
 	mymultiplier := initMyMultiplier()
 	mysentence := NewMySentence(myint, mymultiplier)
 	return mysentence
 }
+
 func initGreeter() Greeter {
 	mysentence := initMySentence()
 	greeter, err := NewMyGreeter(mysentence)
@@ -25,6 +28,7 @@ func initGreeter() Greeter {
 	}
 	return greeter
 }
+
 func initMyService() *MyService {
 	greeter := initGreeter()
 	mymultiplier := initMyMultiplier()

@@ -155,7 +155,7 @@ func Generate(register func(*di.Container)) (dummy struct{}) {
 			generator.NewRawStatement("return " + varName),
 		)
 
-		g = g.AddStatements(initFunc)
+		g = g.AddStatements(initFunc, generator.NewNewline())
 	}
 
 	g = g.Gofmt("-s").Goimports()
