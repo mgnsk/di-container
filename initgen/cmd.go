@@ -42,7 +42,7 @@ type dep struct {
 }
 
 // Generate code for type initializers in the context of the resolved container.
-func Generate(register func(*di.Container)) (dummy struct{}) {
+func Generate(register func(*di.Container)) {
 	c := di.NewContainer()
 	register(c)
 	check(c.Resolve())
