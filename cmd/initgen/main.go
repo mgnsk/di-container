@@ -3,9 +3,7 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"go/printer"
 	"os"
 	"os/exec"
 	"path"
@@ -29,8 +27,6 @@ func main() {
 		panic(err)
 	}
 
-	fset, node := initgen.ParseFile(filename)
-
 	// Package which is being generated.
 	pkg := initgen.GetCurrentPackage()
 
@@ -41,14 +37,6 @@ func main() {
 		generator.NewImport(pkg),
 		generator.NewNewline(),
 	)
-
-	var genStatements []generator.Statement
-	var b bytes.Buffer
-	for _, c := range initgen.ParseContainers(node) {
-		b.Reset()
-		check(printer.Fprint(&b, fset, c.GenFunc))
-		genStatements = append(genStatements, generator.NewRawStatement(b.String()))
-	}
 
 	g = g.AddStatements(
 		generator.NewFunc(
