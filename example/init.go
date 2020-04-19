@@ -3,36 +3,36 @@ package example
 
 import "github.com/mgnsk/di-container/example/constants"
 
-func initMyInt() constants.MyInt {
+func InitMyInt() constants.MyInt {
 	myint := constants.NewMyInt()
 	return myint
 }
 
-func initMyMultiplier() constants.MyMultiplier {
+func InitMyMultiplier() constants.MyMultiplier {
 	mymultiplier := constants.NewMyMultiplier()
 	return mymultiplier
 }
 
-func initMySentence() MySentence {
-	myint := initMyInt()
-	mymultiplier := initMyMultiplier()
-	mysentence := NewMySentence(myint, mymultiplier)
+func InitMySentence() mySentence {
+	myint := InitMyInt()
+	mymultiplier := InitMyMultiplier()
+	mysentence := newMySentence(myint, mymultiplier)
 	return mysentence
 }
 
-func initGreeter() Greeter {
-	mysentence := initMySentence()
-	greeter, err := NewMyGreeter(mysentence)
+func InitGreeter() greeter {
+	mysentence := InitMySentence()
+	greeter, err := newMyGreeter(mysentence)
 	if err != nil {
 		panic(err)
 	}
 	return greeter
 }
 
-func initMyService() *MyService {
-	greeter := initGreeter()
-	mymultiplier := initMyMultiplier()
-	myservice, err := MyServiceProvider(greeter, mymultiplier)
+func InitMyService() *myService {
+	greeter := InitGreeter()
+	mymultiplier := InitMyMultiplier()
+	myservice, err := myServiceProvider(greeter, mymultiplier)
 	if err != nil {
 		panic(err)
 	}

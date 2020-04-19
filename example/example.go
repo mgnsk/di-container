@@ -6,66 +6,66 @@ import (
 	"github.com/mgnsk/di-container/example/constants"
 )
 
-type MySentence string
+type mySentence string
 
 // depends on myint.
-func NewMySentence(number constants.MyInt, mult constants.MyMultiplier) MySentence {
-	return MySentence(fmt.Sprintf("hello world %d!", int(number)*int(mult)))
+func newMySentence(number constants.MyInt, mult constants.MyMultiplier) mySentence {
+	return mySentence(fmt.Sprintf("hello world %d!", int(number)*int(mult)))
 }
 
-type MyGreeter struct {
-	sentence MySentence
+type mygreeter struct {
+	sentence mySentence
 }
 
-// depends on MySentence.
-func NewMyGreeter(sentence MySentence) (*MyGreeter, error) {
-	return &MyGreeter{sentence}, nil
+// depends on mySentence.
+func newMyGreeter(sentence mySentence) (*mygreeter, error) {
+	return &mygreeter{sentence}, nil
 }
 
-func (s *MyGreeter) greet() string {
+func (s *mygreeter) greet() string {
 	return string(s.sentence)
 }
 
-type Greeter interface {
+type greeter interface {
 	greet() string
 }
 
-type MyService struct {
-	greeter Greeter
+type myService struct {
+	greeter greeter
 	mult    constants.MyMultiplier
 }
 
-type Builder func(*MyService)
+type builder func(*myService)
 
-// depends on a Greeter interface.
-func NewMyService(g Greeter) Builder {
-	return func(s *MyService) {
+// depends on a greeter interface.
+func newMyService(g greeter) builder {
+	return func(s *myService) {
 		s.greeter = g
 	}
 }
 
 // optional dependency.
-func (build Builder) WithMultiplier(mult constants.MyMultiplier) Builder {
-	return func(s *MyService) {
+func (build builder) withMultiplier(mult constants.MyMultiplier) builder {
+	return func(s *myService) {
 		build(s)
 		s.mult = mult
 	}
 }
 
-func (build Builder) Build() (*MyService, error) {
-	s := &MyService{}
+func (build builder) build() (*myService, error) {
+	s := &myService{}
 	build(s)
 	return s, nil
 }
 
-func MyServiceProvider(g Greeter, mult constants.MyMultiplier) (*MyService, error) {
-	return NewMyService(g).WithMultiplier(mult).Build()
+func myServiceProvider(g greeter, mult constants.MyMultiplier) (*myService, error) {
+	return newMyService(g).withMultiplier(mult).build()
 }
 
-func (s *MyService) Greetings() string {
+func (s *myService) Greetings() string {
 	return fmt.Sprintf("sentence: %s, mult: %d", s.greeter.greet(), s.mult)
 }
 
-func (s *MyService) Close() error {
-	return fmt.Errorf("MyService closed")
+func (s *myService) Close() error {
+	return fmt.Errorf("myService closed")
 }

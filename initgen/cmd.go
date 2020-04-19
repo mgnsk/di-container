@@ -98,7 +98,7 @@ func Generate(register func(*di.Container)) (dummy struct{}) {
 	)
 
 	for _, d := range order {
-		sig := generator.NewFuncSignature("init" + d.rawType)
+		sig := generator.NewFuncSignature("Init" + strings.Title(d.rawType))
 
 		var returnType string
 		if d.isPointer {
@@ -117,9 +117,9 @@ func Generate(register func(*di.Container)) (dummy struct{}) {
 			providerArgs = append(providerArgs, varName)
 			initFunc = initFunc.AddStatements(
 				generator.NewRawStatement(fmt.Sprintf(
-					"%s := init%s()",
+					"%s := Init%s()",
 					varName,
-					trimPkgPrefix(depName),
+					trimPkgPrefix(strings.Title(depName)),
 				)),
 			)
 		}
