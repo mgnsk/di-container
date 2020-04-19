@@ -10,7 +10,7 @@ type Graph []*Node
 // Node represents a single graph node.
 type Node struct {
 	Value   interface{}
-	Edges   Graph
+	Edges   []*Node
 	visited bool
 	current bool
 }
@@ -40,8 +40,9 @@ func (g *Graph) Resolve() error {
 }
 
 func (g *Graph) index(n *Node) (int, bool) {
-	for i, node := range *g {
-		if node == n {
+	graph := *g
+	for i := range graph {
+		if n == graph[i] {
 			return i, true
 		}
 	}
