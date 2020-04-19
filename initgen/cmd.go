@@ -18,6 +18,14 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 )
 
+// GetCurrentPkg returns the go pkg in the working dir.
+func GetCurrentPkg() string {
+	pkgImport, err := exec.Command("go", "list", "-f", "{{.ImportPath}}", ".").Output()
+	check(err)
+
+	return string(bytes.TrimSpace(pkgImport))
+}
+
 func check(err error) {
 	if err != nil {
 		panic(err)
@@ -267,13 +275,6 @@ func parseFile(filename string) (*token.FileSet, *ast.File) {
 	check(err)
 
 	return fset, node
-}
-
-func GetCurrentPkg() string {
-	pkgImport, err := exec.Command("go", "list", "-f", "{{.ImportPath}}", ".").Output()
-	check(err)
-
-	return string(bytes.TrimSpace(pkgImport))
 }
 
 func getInnermostIdent(node ast.Node) string {
