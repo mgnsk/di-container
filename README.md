@@ -2,6 +2,8 @@
 
 Another Go DI container with optional init code generator.
 
+Installation: `go install github.com/mgnsk/di-container/cmd/initgen`
+
 ### Example
 
 Given an `initgen.go` file:
