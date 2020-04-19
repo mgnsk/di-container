@@ -3,13 +3,13 @@ package example
 
 import "github.com/mgnsk/di-container/example/constants"
 
-func initMyInt() constants.MyInt {
-	myint := constants.NewMyInt()
-	return myint
-}
 func initMyMultiplier() constants.MyMultiplier {
 	mymultiplier := constants.NewMyMultiplier()
 	return mymultiplier
+}
+func initMyInt() constants.MyInt {
+	myint := constants.NewMyInt()
+	return myint
 }
 func initMySentence() MySentence {
 	myint := initMyInt()
