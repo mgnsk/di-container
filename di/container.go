@@ -187,7 +187,7 @@ func (c *Container) build() error {
 func reflectItem(typ interface{}) (tp reflect.Type, isPointer bool) {
 	itemValue := reflect.ValueOf(typ)
 	if !itemValue.IsValid() {
-		panic("container: typ must be a valid value")
+		panic(fmt.Errorf("container: typ '%T' must be a valid value", typ))
 	}
 
 	tp = itemValue.Type()
@@ -201,7 +201,7 @@ func reflectItem(typ interface{}) (tp reflect.Type, isPointer bool) {
 		tp = tp.Elem()
 		return
 	} else if tp.Kind() != reflect.Ptr && !itemValue.IsZero() {
-		panic("container: a non-pointer and non-interface typ must be a zero value")
+		panic(fmt.Errorf("container: typ '%T' a non-pointer and non-interface typ must be a zero value", typ))
 	}
 
 	return
