@@ -5,14 +5,14 @@ import (
 	"github.com/mgnsk/di-container/example/constants"
 )
 
-func InitMyInt() constants.MyInt {
-	myint := constants.NewMyInt()
-	return myint
-}
-
 func InitMyMultiplier() constants.MyMultiplier {
 	mymultiplier := constants.NewMyMultiplier()
 	return mymultiplier
+}
+
+func InitMyInt() constants.MyInt {
+	myint := constants.NewMyInt()
+	return myint
 }
 
 func InitMySentence() mySentence {
@@ -31,10 +31,16 @@ func InitGreeter() greeter {
 	return greeter
 }
 
-func InitMyService() *myService {
+func InitFactory() factory {
+	factory := newFactory()
+	return factory
+}
+
+func InitMyService() myService {
 	greeter := InitGreeter()
+	factory := InitFactory()
 	mymultiplier := InitMyMultiplier()
-	myservice, err := myServiceProvider(greeter, mymultiplier)
+	myservice, err := myServiceProvider(greeter, factory, mymultiplier)
 	if err != nil {
 		panic(err)
 	}

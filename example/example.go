@@ -18,11 +18,11 @@ type mygreeter struct {
 }
 
 // depends on mySentence.
-func newMyGreeter(sentence mySentence) (*mygreeter, error) {
-	return &mygreeter{sentence}, nil
+func newMyGreeter(sentence mySentence) (mygreeter, error) {
+	return mygreeter{sentence}, nil
 }
 
-func (s *mygreeter) greet() string {
+func (s mygreeter) greet() string {
 	return string(s.sentence)
 }
 
@@ -32,15 +32,25 @@ type greeter interface {
 
 type myService struct {
 	greeter greeter
+	f       factory
 	mult    constants.MyMultiplier
 }
 
 type builder func(*myService)
 
+type factory func() string
+
+func newFactory() factory {
+	return func() string {
+		return "test"
+	}
+}
+
 // depends on a greeter interface.
-func newMyService(g greeter) builder {
+func newMyService(g greeter, f factory) builder {
 	return func(s *myService) {
 		s.greeter = g
+		s.f = f
 	}
 }
 
@@ -52,20 +62,20 @@ func (build builder) withMultiplier(mult constants.MyMultiplier) builder {
 	}
 }
 
-func (build builder) build() (*myService, error) {
+func (build builder) build() (myService, error) {
 	s := &myService{}
 	build(s)
-	return s, nil
+	return *s, nil
 }
 
-func myServiceProvider(g greeter, mult constants.MyMultiplier) (*myService, error) {
-	return newMyService(g).withMultiplier(mult).build()
+func myServiceProvider(g greeter, f factory, mult constants.MyMultiplier) (myService, error) {
+	return newMyService(g, f).withMultiplier(mult).build()
 }
 
-func (s *myService) Greetings() string {
+func (s myService) Greetings() string {
 	return fmt.Sprintf("sentence: %s, mult: %d", s.greeter.greet(), s.mult)
 }
 
-func (s *myService) Close() error {
+func (s myService) Close() error {
 	return fmt.Errorf("myService closed")
 }

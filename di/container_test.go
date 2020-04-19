@@ -45,15 +45,25 @@ type greeter interface {
 
 type myservice struct {
 	greeter greeter
+	f       factory
 	mult    mymultiplier
 }
 
 type builder func(*myservice)
 
+type factory func() string
+
+func newFactory() factory {
+	return func() string {
+		return "test"
+	}
+}
+
 // depends on a greeter interface.
-func newMyService(g greeter) builder {
+func newMyService(g greeter, f factory) builder {
 	return func(s *myservice) {
 		s.greeter = g
+		s.f = f
 	}
 }
 
@@ -65,17 +75,17 @@ func (build builder) withMultiplier(mult mymultiplier) builder {
 	}
 }
 
-func (build builder) build() (*myservice, error) {
+func (build builder) build() (myservice, error) {
 	s := &myservice{}
 	build(s)
-	return s, nil
+	return *s, nil
 }
 
-func (s *myservice) greetings() string {
-	return fmt.Sprintf("sentence: %s, mult: %d", s.greeter.greet(), s.mult)
+func (s myservice) greetings() string {
+	return fmt.Sprintf("sentence: %s, mult: %d, factory: %s", s.greeter.greet(), s.mult, s.f())
 }
 
-func (s *myservice) Close() error {
+func (s myservice) Close() error {
 	return fmt.Errorf("myservice closed")
 }
 
@@ -86,13 +96,15 @@ func TestMissingProvider(t *testing.T) {
 	c.Register(new(greeter), newMyGreeter)
 
 	// All non-pointer and non-interface types must be declared as a zero value.
-	c.Register(mysentence(""), newMySentence)
-	c.Register(mymultiplier(0), newMyMultiplier)
+	c.Register(new(mysentence), newMySentence)
+	c.Register(new(mymultiplier), newMyMultiplier)
+
+	c.Register(new(factory), newFactory)
 
 	// For builders we create a provider wrapper which explicitly specifies
 	// which dependencies (mandatory and optional) we are using.
-	c.Register(&myservice{}, func(g greeter, mult mymultiplier) (*myservice, error) {
-		return newMyService(g).withMultiplier(mult).build()
+	c.Register(new(myservice), func(g greeter, f factory, mult mymultiplier) (myservice, error) {
+		return newMyService(g, f).withMultiplier(mult).build()
 	})
 
 	if err := c.Resolve(); err == nil {
@@ -106,13 +118,14 @@ func TestContainer(t *testing.T) {
 	c := NewContainer()
 
 	c.Register(new(greeter), newMyGreeter)
-	c.Register(mysentence(""), newMySentence)
-	c.Register(mymultiplier(0), newMyMultiplier)
-	c.Register(&myservice{}, func(g greeter, mult mymultiplier) (*myservice, error) {
-		return newMyService(g).withMultiplier(mult).build()
+	c.Register(new(mysentence), newMySentence)
+	c.Register(new(mymultiplier), newMyMultiplier)
+	c.Register(new(myservice), func(g greeter, f factory, mult mymultiplier) (myservice, error) {
+		return newMyService(g, f).withMultiplier(mult).build()
 	})
 
-	c.Register(myint(0), newMyInt)
+	c.Register(new(myint), newMyInt)
+	c.Register(new(factory), newFactory)
 
 	if err := c.Resolve(); err != nil {
 		t.Fatal(err)
@@ -128,14 +141,9 @@ func TestContainer(t *testing.T) {
 		t.Fatal("invalid sentence")
 	}
 
-	g := c.Get(&myservice{}).(*myservice)
-	if g.greetings() != "sentence: hello world 42!, mult: 2" {
+	g := c.Get(&myservice{}).(myservice)
+	if g.greetings() != "sentence: hello world 42!, mult: 2, factory: test" {
 		t.Fatal("invalid greeting")
-	}
-
-	g2 := c.Get(&myservice{}).(*myservice)
-	if g != g2 {
-		t.Fatal("expected singleton pointer")
 	}
 
 	if errs := c.Close(); (<-errs).Error() != "myservice closed" {

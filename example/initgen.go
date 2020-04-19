@@ -12,9 +12,10 @@ import (
 func Generate() {
 	initgen.Generate(func(c *di.Container) {
 		c.Register(new(greeter), newMyGreeter)
-		c.Register(mySentence(""), newMySentence)
-		c.Register(constants.MyMultiplier(0), constants.NewMyMultiplier)
-		c.Register(&myService{}, myServiceProvider)
-		c.Register(constants.MyInt(0), constants.NewMyInt)
+		c.Register(new(mySentence), newMySentence)
+		c.Register(new(constants.MyMultiplier), constants.NewMyMultiplier)
+		c.Register(new(myService), myServiceProvider)
+		c.Register(new(constants.MyInt), constants.NewMyInt)
+		c.Register(new(factory), newFactory)
 	})
 }

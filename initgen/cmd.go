@@ -35,7 +35,6 @@ func check(err error) {
 type dep struct {
 	localType       string
 	rawType         string
-	isPointer       bool
 	deps            []string
 	providerReturns int
 	newFunc         string
@@ -68,7 +67,6 @@ func Generate(register func(*di.Container)) {
 		d := &dep{
 			localType:       trimCurrentPkgPrefix(item.Typ.String()),
 			rawType:         trimPkgPrefix(item.Typ.String()),
-			isPointer:       item.IsPointer,
 			deps:            make([]string, len(item.Node.Edges)),
 			providerReturns: item.Provider.Type().NumOut(),
 		}
@@ -124,15 +122,7 @@ func Generate(register func(*di.Container)) {
 
 	for _, d := range order {
 		sig := generator.NewFuncSignature("Init" + strings.Title(d.rawType))
-
-		var returnType string
-		if d.isPointer {
-			returnType = "*" + d.localType
-		} else {
-			returnType = d.localType
-		}
-
-		sig = sig.AddReturnTypes(returnType)
+		sig = sig.AddReturnTypes(d.localType)
 		initFunc := generator.NewFunc(nil, sig)
 
 		// Collect arguments for type provider function.
@@ -154,25 +144,29 @@ func Generate(register func(*di.Container)) {
 		argString := strings.Join(providerArgs, ", ")
 
 		if d.providerReturns == 2 {
+			line := fmt.Sprintf(
+				"%s, err := %s(%s)",
+				varName,
+				d.newFunc,
+				argString,
+			)
+
 			// Returns a value + error.
 			initFunc = initFunc.AddStatements(
-				generator.NewRawStatement(fmt.Sprintf(
-					"%s, err := %s(%s)",
-					varName,
-					d.newFunc,
-					argString,
-				)),
+				generator.NewRawStatement(line),
 				generator.NewRawStatement(`if err != nil { panic(err) }`),
 			)
 		} else {
+			line := fmt.Sprintf(
+				"%s := %s(%s)",
+				varName,
+				d.newFunc,
+				argString,
+			)
+
 			// Returns only value.
 			initFunc = initFunc.AddStatements(
-				generator.NewRawStatement(fmt.Sprintf(
-					"%s := %s(%s)",
-					varName,
-					d.newFunc,
-					argString,
-				)),
+				generator.NewRawStatement(line),
 			)
 		}
 

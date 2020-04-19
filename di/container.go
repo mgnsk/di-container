@@ -42,7 +42,7 @@ func NewContainer() *Container {
 // provider must return the dependency type as the first return type
 // and possibly an error as the second return type.
 func (c *Container) Register(typ, provider interface{}) {
-	itemType, isPointer := reflectItem(typ)
+	itemType := reflectItem(typ)
 	if _, ok := c.items[itemType]; ok {
 		panic(fmt.Errorf("container: item type '%T' is already registered", typ))
 	}
@@ -56,21 +56,24 @@ func (c *Container) Register(typ, provider interface{}) {
 	}
 
 	if !providerType.Out(0).AssignableTo(itemType) {
-		panic("container: the type of the first return value of provider must be assignable to typ")
+		panic(fmt.Errorf(
+			"container: the type '%s' of the first return value of provider must be assignable to typ '%s'",
+			providerType.Out(0),
+			itemType,
+		))
 	}
 
 	// If the function returns 2 values, the second must be an error.
 	if providerType.NumOut() == 2 {
 		errorInterface := reflect.TypeOf((*error)(nil)).Elem()
 		if !providerType.Out(1).Implements(errorInterface) {
-			panic("container: the type of the second return value of provider must be an error")
+			panic(fmt.Errorf("container: the type '%s' of the second return value of provider must be an error", providerType.Out(1)))
 		}
 	}
 
 	item := &Item{
-		Typ:       itemType,
-		IsPointer: isPointer,
-		Provider:  reflect.ValueOf(provider),
+		Typ:      itemType,
+		Provider: reflect.ValueOf(provider),
 	}
 	item.Node = &dag.Node{Value: item}
 
@@ -102,7 +105,7 @@ func (c *Container) Build() error {
 
 // Get returns a built dependency by type.
 func (c *Container) Get(typ interface{}) interface{} {
-	tp, _ := reflectItem(typ)
+	tp := reflectItem(typ)
 	item, ok := c.items[tp]
 	if !ok {
 		panic(fmt.Errorf("container: item with type '%T' not found", typ))
@@ -184,25 +187,16 @@ func (c *Container) build() error {
 	return nil
 }
 
-func reflectItem(typ interface{}) (tp reflect.Type, isPointer bool) {
+func reflectItem(typ interface{}) reflect.Type {
 	itemValue := reflect.ValueOf(typ)
 	if !itemValue.IsValid() {
 		panic(fmt.Errorf("container: typ '%T' must be a valid value", typ))
 	}
 
-	tp = itemValue.Type()
-
-	if tp.Kind() == reflect.Ptr && tp.Elem().Kind() != reflect.Interface {
-		isPointer = true
+	tp := itemValue.Type()
+	if tp.Kind() != reflect.Ptr {
+		panic(fmt.Errorf("container: specify type '%T' as new(T)", typ))
 	}
 
-	// Interfaces are be passed as pointers
-	if tp.Kind() == reflect.Ptr && tp.Elem().Kind() == reflect.Interface {
-		tp = tp.Elem()
-		return
-	} else if tp.Kind() != reflect.Ptr && !itemValue.IsZero() {
-		panic(fmt.Errorf("container: typ '%T' a non-pointer and non-interface typ must be a zero value", typ))
-	}
-
-	return
+	return tp.Elem()
 }
