@@ -1,5 +1,4 @@
-// package initgen generates a
-
+// package initgen generates a container generator for the package in current working dir.
 package main
 
 import (
@@ -23,9 +22,8 @@ func main() {
 	filename, err := filepath.Abs(filepath.Join(".", "initgen.go"))
 	check(err)
 
-	if _, err := os.Stat(filename); err != nil {
-		panic(err)
-	}
+	_, err = os.Stat(filename)
+	check(err)
 
 	// Package which is being generated.
 	pkg := initgen.GetCurrentPkg()
@@ -38,6 +36,7 @@ func main() {
 		generator.NewNewline(),
 	)
 
+	// Add a main function to run the Generate function provided by pkg.
 	g = g.AddStatements(
 		generator.NewFunc(
 			nil,
@@ -51,23 +50,18 @@ func main() {
 	check(err)
 
 	dir := filepath.Join(filepath.Dir(filename), "tmp")
-
 	os.RemoveAll(dir)
-
 	check(os.Mkdir(dir, os.ModePerm))
-
 	defer os.RemoveAll(dir)
 
 	tmpFile := filepath.Join(dir, "initgen_build.go")
-
 	out, err := os.OpenFile(tmpFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	check(err)
-
 	_, err = fmt.Fprint(out, generated)
 	check(err)
 	check(out.Close())
 
-	// Run the generator.
+	// Run the container generator.
 	res, err := exec.Command("go", "run", tmpFile).CombinedOutput()
 	fmt.Println(string(res))
 	check(err)

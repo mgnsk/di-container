@@ -18,61 +18,64 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 )
 
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+type dep struct {
+	localType       string
+	rawType         string
+	isPointer       bool
+	deps            []string
+	providerReturns int
+	newFunc         string
+}
+
 // Generate code for type initializers in the context of the resolved container.
 func Generate(register func(*di.Container)) (dummy struct{}) {
 	c := di.NewContainer()
 	register(c)
-	if err := c.Resolve(); err != nil {
-		panic(err)
-	}
+	check(c.Resolve())
 
 	curPkg := path.Base(GetCurrentPkg())
 
-	trimCurrentPkg := func(s string) string {
+	trimCurrentPkgPrefix := func(s string) string {
 		s = strings.TrimPrefix(s, "*")
 		s = strings.TrimPrefix(s, curPkg+".")
 		return s
 	}
 
-	type dep struct {
-		name            string
-		isPointer       bool
-		deps            []string
-		providerReturns int
-		newFunc         string
+	trimPkgPrefix := func(s string) string {
+		safeName := strings.Split(s, ".")
+		name := safeName[len(safeName)-1]
+		return name
 	}
 
 	// Collect type dependencies.
-	deps := make(map[string]*dep)
+	typeDeps := make(map[string]*dep)
 	var order []*dep
-
 	c.Range(func(item *di.Item) {
 		d := &dep{
-			name:            trimCurrentPkg(item.Typ.String()),
+			localType:       trimCurrentPkgPrefix(item.Typ.String()),
+			rawType:         trimPkgPrefix(item.Typ.String()),
 			isPointer:       item.IsPointer,
 			deps:            make([]string, len(item.Node.Edges)),
 			providerReturns: item.Provider.Type().NumOut(),
 		}
 		for i, n := range item.Node.Edges {
 			depItem := n.Value.(*di.Item)
-			d.deps[i] = trimCurrentPkg(depItem.Typ.String())
+			d.deps[i] = trimCurrentPkgPrefix(depItem.Typ.String())
 		}
 		order = append(order, d)
-		deps[d.name] = d
+		typeDeps[d.localType] = d
 	})
 
-	safename := func(s string) string {
-		safeName := strings.Split(s, ".")
-		name := safeName[len(safeName)-1]
-		return name
-	}
-
 	// Parse functions from source code.
-	// The names don't contain package prefixers. (TODO clean up logic)
-	newFuncs := parseDefaultNewFuncs()
-	for typeName, fName := range newFuncs {
-		for _, d := range deps {
-			if safename(d.name) == typeName {
+	for typeName, fName := range parseDefaultNewFuncs() {
+		for _, d := range order {
+			if d.rawType == typeName {
 				d.newFunc = fName
 			}
 		}
@@ -90,15 +93,13 @@ func Generate(register func(*di.Container)) (dummy struct{}) {
 	)
 
 	for _, d := range order {
-		name := safename(d.name)
-
-		sig := generator.NewFuncSignature("init" + name)
+		sig := generator.NewFuncSignature("init" + d.rawType)
 
 		var returnType string
 		if d.isPointer {
-			returnType = "*" + d.name
+			returnType = "*" + d.localType
 		} else {
-			returnType = d.name
+			returnType = d.localType
 		}
 
 		sig = sig.AddReturnTypes(returnType)
@@ -106,20 +107,19 @@ func Generate(register func(*di.Container)) (dummy struct{}) {
 
 		// Collect arguments for type provider function.
 		var providerArgs []string
-		for _, depName := range deps[d.name].deps {
-			varName := strings.ToLower(safename(depName))
+		for _, depName := range typeDeps[d.localType].deps {
+			varName := strings.ToLower(trimPkgPrefix(depName))
 			providerArgs = append(providerArgs, varName)
-
 			initFunc = initFunc.AddStatements(
 				generator.NewRawStatement(fmt.Sprintf(
 					"%s := init%s()",
 					varName,
-					safename(depName),
+					trimPkgPrefix(depName),
 				)),
 			)
 		}
 
-		varName := strings.ToLower(name)
+		varName := strings.ToLower(d.rawType)
 
 		argString := strings.Join(providerArgs, ", ")
 
@@ -277,12 +277,6 @@ func GetCurrentPkg() string {
 	check(err)
 
 	return string(bytes.TrimSpace(pkgImport))
-}
-
-func check(err error) {
-	if err != nil {
-		panic(err)
-	}
 }
 
 func getInnermostIdent(node ast.Node) string {
