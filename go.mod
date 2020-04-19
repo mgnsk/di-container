@@ -18,6 +18,7 @@ require (
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.9.0 // indirect
 	github.com/rogpeppe/godef v1.1.2 // indirect
+	github.com/segmentio/go-camelcase v0.0.0-20160726192923-7085f1e3c734
 	github.com/sirupsen/logrus v1.5.0 // indirect
 	github.com/willf/bitset v1.1.10 // indirect
 	go.starlark.net v0.0.0-20200330013621-be5394c419b6 // indirect

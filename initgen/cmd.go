@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os/exec"
+	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -63,8 +64,8 @@ func ParseRegister(container Container) []RegisterCall {
 	return calls
 }
 
-func ParseLabels(fset *token.FileSet, registers []RegisterCall) map[string]string {
-	labels := make(map[string]string)
+func ParseNewFuncs(fset *token.FileSet, registers []RegisterCall) map[string]string {
+	funcs := make(map[string]string)
 
 	for _, r := range registers {
 		if len(r.RegisterFunc.Args) != 2 {
@@ -74,13 +75,16 @@ func ParseLabels(fset *token.FileSet, registers []RegisterCall) map[string]strin
 		// Get the innermost ident name.
 		typeIdent := getInnermostIdent(r.RegisterFunc.Args[0])
 
+		safeType := strings.Split(typeIdent, ".")
+		typeIdent = safeType[len(safeType)-1]
+
 		// Provider func ident.
 		providerIdent := getInnermostIdent(r.RegisterFunc.Args[1])
 
-		labels[typeIdent] = providerIdent
+		funcs[typeIdent] = providerIdent
 	}
 
-	return labels
+	return funcs
 }
 
 func ParseFile(filename string) (*token.FileSet, *ast.File) {

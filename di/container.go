@@ -12,7 +12,8 @@ import (
 // Item represents a single item which may depend on other nodes.
 type Item struct {
 	// Type of the item.
-	typ reflect.Type
+	typ       reflect.Type
+	isPointer bool
 	// Provider function for item type.
 	provider reflect.Value
 	// The built value of this item.
@@ -41,7 +42,7 @@ func NewContainer() *Container {
 // provider must return the dependency type as the first return type
 // and possibly an error as the second return type.
 func (c *Container) Register(typ, provider interface{}) {
-	itemType := reflectItem(typ)
+	itemType, isPointer := reflectItem(typ)
 	if _, ok := c.items[itemType]; ok {
 		panic(fmt.Errorf("container: item type '%T' is already registered", typ))
 	}
@@ -67,8 +68,9 @@ func (c *Container) Register(typ, provider interface{}) {
 	}
 
 	item := &Item{
-		typ:      itemType,
-		provider: reflect.ValueOf(provider),
+		typ:       itemType,
+		isPointer: isPointer,
+		provider:  reflect.ValueOf(provider),
 	}
 	item.n = &dag.Node{Value: item}
 
@@ -100,7 +102,8 @@ func (c *Container) Build() error {
 
 // Get returns a built dependency by type.
 func (c *Container) Get(typ interface{}) interface{} {
-	item, ok := c.items[reflectItem(typ)]
+	tp, _ := reflectItem(typ)
+	item, ok := c.items[tp]
 	if !ok {
 		panic(fmt.Errorf("container: item with type '%T' not found", typ))
 	}
@@ -181,20 +184,25 @@ func (c *Container) build() error {
 	return nil
 }
 
-func reflectItem(typ interface{}) reflect.Type {
+func reflectItem(typ interface{}) (tp reflect.Type, isPointer bool) {
 	itemValue := reflect.ValueOf(typ)
 	if !itemValue.IsValid() {
 		panic("container: typ must be a valid value")
 	}
 
-	tp := itemValue.Type()
+	tp = itemValue.Type()
+
+	if tp.Kind() == reflect.Ptr && tp.Elem().Kind() != reflect.Interface {
+		isPointer = true
+	}
 
 	// Interfaces are be passed as pointers
 	if tp.Kind() == reflect.Ptr && tp.Elem().Kind() == reflect.Interface {
-		return tp.Elem()
+		tp = tp.Elem()
+		return
 	} else if tp.Kind() != reflect.Ptr && !itemValue.IsZero() {
 		panic("container: a non-pointer and non-interface typ must be a zero value")
 	}
 
-	return tp
+	return
 }
