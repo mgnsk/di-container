@@ -1,6 +1,6 @@
 ## DI container for Go
 
-Another DI container with optional init code generator.
+Another Go DI container with optional init code generator.
 
 ### Example
 
