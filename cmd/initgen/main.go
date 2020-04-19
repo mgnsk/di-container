@@ -28,7 +28,7 @@ func main() {
 	}
 
 	// Package which is being generated.
-	pkg := initgen.GetCurrentPackage()
+	pkg := initgen.GetCurrentPkg()
 
 	// First we generate the temporary generator wrapper which is run later.
 	g := generator.NewRoot(

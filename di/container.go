@@ -12,14 +12,14 @@ import (
 // Item represents a single item which may depend on other nodes.
 type Item struct {
 	// Type of the item.
-	typ       reflect.Type
-	isPointer bool
+	Typ       reflect.Type
+	IsPointer bool
 	// Provider function for item type.
-	provider reflect.Value
+	Provider reflect.Value
 	// The built value of this item.
 	Value reflect.Value
 	// Graph node of the item.
-	n *dag.Node
+	Node *dag.Node
 }
 
 // Container is a generic dependency container.
@@ -68,11 +68,11 @@ func (c *Container) Register(typ, provider interface{}) {
 	}
 
 	item := &Item{
-		typ:       itemType,
-		isPointer: isPointer,
-		provider:  reflect.ValueOf(provider),
+		Typ:       itemType,
+		IsPointer: isPointer,
+		Provider:  reflect.ValueOf(provider),
 	}
-	item.n = &dag.Node{Value: item}
+	item.Node = &dag.Node{Value: item}
 
 	c.items[itemType] = item
 }
@@ -135,18 +135,18 @@ func (c *Container) Close() <-chan error {
 
 func (c *Container) resolve() error {
 	for _, item := range c.items {
-		providerType := item.provider.Type()
+		providerType := item.Provider.Type()
 		// Range through provider arguments (dependencies of the node).
 		for i := 0; i < providerType.NumIn(); i++ {
 			if depItem, ok := c.items[providerType.In(i)]; ok {
 				// An item with this type was already registered, add it as an edge.
-				item.n.Edges = append(item.n.Edges, depItem.n)
+				item.Node.Edges = append(item.Node.Edges, depItem.Node)
 			} else {
 				return fmt.Errorf("Missing provider for type '%s'", providerType.In(i))
 			}
 		}
 
-		c.g = append(c.g, item.n)
+		c.g = append(c.g, item.Node)
 	}
 
 	// Sort the dependency graph.
@@ -163,7 +163,7 @@ func (c *Container) build() error {
 		// Populate the dependencies (arguments) of the provider function.
 		var args []reflect.Value
 		item := n.Value.(*Item)
-		providerType := item.provider.Type()
+		providerType := item.Provider.Type()
 
 		for i := 0; i < providerType.NumIn(); i++ {
 			// Since the graph is sorted in dependency order,
@@ -171,7 +171,7 @@ func (c *Container) build() error {
 			args = append(args, c.items[providerType.In(i)].Value)
 		}
 
-		result := item.provider.Call(args)
+		result := item.Provider.Call(args)
 		if len(result) == 2 && !result[1].IsNil() {
 			// We hardcoded max 2 return types for the provider.
 			// The second value is the error.
