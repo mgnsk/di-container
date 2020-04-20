@@ -190,6 +190,10 @@ func Generate(register func(*di.Container)) {
 		panic(err)
 	}
 
+	// Run goimports again, apparently sometimes it doesn't remove all unused imports and thus needs 2 passes.
+	_, err = exec.Command("goimports", "-w", "init.go").Output()
+	check(err)
+
 	return
 }
 

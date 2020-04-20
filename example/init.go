@@ -10,6 +10,11 @@ func InitMyInt() constants.MyInt {
 	return myint
 }
 
+func InitFactory() factory {
+	factory := newFactory()
+	return factory
+}
+
 func InitMyMultiplier() constants.MyMultiplier {
 	mymultiplier := constants.NewMyMultiplier()
 	return mymultiplier
@@ -29,11 +34,6 @@ func InitGreeter() greeter {
 		panic(err)
 	}
 	return greeter
-}
-
-func InitFactory() factory {
-	factory := newFactory()
-	return factory
 }
 
 func InitMyService() myService {
