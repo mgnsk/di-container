@@ -4,6 +4,8 @@ Another Go DI container with optional init code generator.
 
 Installation: `go get github.com/mgnsk/di-container/cmd/initgen`
 
+Also needs to have `goimports` installed `go get golang.org/x/tools/cmd/goimports`.
+
 ### Example
 Given an `initgen.go` it generates an `init.go`.
 
