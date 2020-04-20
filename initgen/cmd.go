@@ -177,7 +177,9 @@ func Generate(register func(*di.Container)) {
 		g = g.AddStatements(initFunc, generator.NewNewline())
 	}
 
-	g = g.Gofmt("-s").Goimports()
+	g = g.Gofmt("-s").
+		Goimports().
+		EnableSyntaxChecking()
 
 	generated, err := g.Generate(0)
 	if err != nil {

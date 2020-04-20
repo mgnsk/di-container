@@ -5,14 +5,14 @@ import (
 	"github.com/mgnsk/di-container/example/constants"
 )
 
-func InitMyMultiplier() constants.MyMultiplier {
-	mymultiplier := constants.NewMyMultiplier()
-	return mymultiplier
-}
-
 func InitMyInt() constants.MyInt {
 	myint := constants.NewMyInt()
 	return myint
+}
+
+func InitMyMultiplier() constants.MyMultiplier {
+	mymultiplier := constants.NewMyMultiplier()
+	return mymultiplier
 }
 
 func InitMySentence() mySentence {
