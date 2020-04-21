@@ -14,7 +14,7 @@ func Generate() {
 		c.Register(new(greeter), newMyGreeter)
 		c.Register(new(mySentence), newMySentence)
 		c.Register(new(constants.MyMultiplier), constants.NewMyMultiplier)
-		c.Register(new(myService), myServiceProvider)
+		c.Register(new(MyService), myServiceProvider)
 		c.Register(new(constants.MyInt), constants.NewMyInt)
 		c.Register(new(factory), newFactory)
 	})

@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/mgnsk/di-container/di"
 	"github.com/moznion/gowrtr/generator"
@@ -80,17 +81,17 @@ func Generate(register func(*di.Container)) {
 
 	// Parse source file.
 	filename, err := filepath.Abs(filepath.Join(".", "initgen.go"))
-	if err != nil {
-		panic(err)
-	}
+	check(err)
 
 	fset, node := parseFile(filename)
 
 	// Parse functions from source code.
 	for typeName, fName := range parseDefaultNewFuncs(fset, node) {
+	L:
 		for _, d := range order {
 			if d.rawType == typeName {
 				d.newFunc = fName
+				break L
 			}
 		}
 	}
@@ -106,6 +107,7 @@ func Generate(register func(*di.Container)) {
 					imp := strings.Trim(t.Value, `"`)
 					if imp != "github.com/mgnsk/di-container/di" && imp != "github.com/mgnsk/di-container/initgen" {
 						imports = append(imports, imp)
+						return false
 					}
 				}
 				return true
@@ -120,21 +122,30 @@ func Generate(register func(*di.Container)) {
 		generator.NewNewline(),
 	)
 
+	getInitName := func(rawType string) string {
+		if unicode.IsLower([]rune(rawType)[0]) {
+			return "init"
+		}
+		return "Init"
+	}
+
 	for _, d := range order {
-		sig := generator.NewFuncSignature("Init" + strings.Title(d.rawType))
+		sig := generator.NewFuncSignature(getInitName(d.rawType) + strings.Title(d.rawType))
 		sig = sig.AddReturnTypes(d.localType)
 		initFunc := generator.NewFunc(nil, sig)
 
 		// Collect arguments for type provider function.
 		var providerArgs []string
 		for _, depName := range typeDeps[d.localType].deps {
-			varName := strings.ToLower(trimPkgPrefix(depName))
+			rawType := trimPkgPrefix(depName)
+			varName := strings.ToLower(rawType)
 			providerArgs = append(providerArgs, varName)
 			initFunc = initFunc.AddStatements(
 				generator.NewRawStatement(fmt.Sprintf(
-					"%s := Init%s()",
+					"%s := %s%s()",
 					varName,
-					trimPkgPrefix(strings.Title(depName)),
+					getInitName(rawType),
+					strings.Title(rawType),
 				)),
 			)
 		}
@@ -186,9 +197,7 @@ func Generate(register func(*di.Container)) {
 		panic(err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(".", "init.go"), []byte(generated), os.ModePerm); err != nil {
-		panic(err)
-	}
+	check(ioutil.WriteFile(filepath.Join(".", "init.go"), []byte(generated), os.ModePerm))
 
 	// Run goimports again, apparently sometimes it doesn't remove all unused imports and thus needs 2 passes.
 	_, err = exec.Command("goimports", "-w", "init.go").Output()

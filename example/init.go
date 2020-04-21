@@ -10,25 +10,20 @@ func InitMyInt() constants.MyInt {
 	return myint
 }
 
-func InitFactory() factory {
-	factory := newFactory()
-	return factory
-}
-
 func InitMyMultiplier() constants.MyMultiplier {
 	mymultiplier := constants.NewMyMultiplier()
 	return mymultiplier
 }
 
-func InitMySentence() mySentence {
+func initMySentence() mySentence {
 	myint := InitMyInt()
 	mymultiplier := InitMyMultiplier()
 	mysentence := newMySentence(myint, mymultiplier)
 	return mysentence
 }
 
-func InitGreeter() greeter {
-	mysentence := InitMySentence()
+func initGreeter() greeter {
+	mysentence := initMySentence()
 	greeter, err := newMyGreeter(mysentence)
 	if err != nil {
 		panic(err)
@@ -36,9 +31,14 @@ func InitGreeter() greeter {
 	return greeter
 }
 
-func InitMyService() myService {
-	greeter := InitGreeter()
-	factory := InitFactory()
+func initFactory() factory {
+	factory := newFactory()
+	return factory
+}
+
+func InitMyService() MyService {
+	greeter := initGreeter()
+	factory := initFactory()
 	mymultiplier := InitMyMultiplier()
 	myservice, err := myServiceProvider(greeter, factory, mymultiplier)
 	if err != nil {

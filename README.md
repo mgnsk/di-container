@@ -13,7 +13,7 @@ It is possible to use the container on runtime. See the tests in `container`.
 
 It reports errors when a type is missing a provider function.
 ```
-go generate -x ./...
+go generate -x ./... (if you have the go:generate comment) or run initgen manually in the package dir you wish to generate.
 initgen
 panic: Missing provider for type 'constants.MyInt'
 ...

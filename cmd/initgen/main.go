@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -54,12 +55,8 @@ func main() {
 	check(os.Mkdir(dir, os.ModePerm))
 	defer os.RemoveAll(dir)
 
-	tmpFile := filepath.Join(dir, "initgen_build.go")
-	out, err := os.OpenFile(tmpFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
-	check(err)
-	_, err = fmt.Fprint(out, generated)
-	check(err)
-	check(out.Close())
+	tmpFile := filepath.Join(".", "tmp", "initgen_build.go")
+	check(ioutil.WriteFile(tmpFile, []byte(generated), os.ModePerm))
 
 	// Run the container generator.
 	res, err := exec.Command("go", "run", tmpFile).CombinedOutput()
