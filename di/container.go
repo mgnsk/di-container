@@ -12,8 +12,7 @@ import (
 // Item represents a single item which may depend on other nodes.
 type Item struct {
 	// Type of the item.
-	Typ       reflect.Type
-	IsPointer bool
+	Typ reflect.Type
 	// Provider function for item type.
 	Provider reflect.Value
 	// The built value of this item.
