@@ -3,6 +3,8 @@ module github.com/mgnsk/di-container
 go 1.14
 
 require (
-	github.com/moznion/gowrtr v1.4.1
-	golang.org/x/tools v0.0.0-20200420001825-978e26b7c37c
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/hashicorp/go-multierror v1.1.0
+	github.com/moznion/gowrtr v1.5.0
+	golang.org/x/tools v0.0.0-20200928182047-19e03678916f
 )

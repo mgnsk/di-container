@@ -62,20 +62,20 @@ func (build builder) withMultiplier(mult constants.MyMultiplier) builder {
 	}
 }
 
-func (build builder) build() (MyService, error) {
+func (build builder) build() (*MyService, error) {
 	s := &MyService{}
 	build(s)
-	return *s, nil
+	return s, nil
 }
 
-func myServiceProvider(g greeter, f factory, mult constants.MyMultiplier) (MyService, error) {
+func myServiceProvider(g greeter, f factory, mult constants.MyMultiplier) (*MyService, error) {
 	return newMyService(g, f).withMultiplier(mult).build()
 }
 
-func (s MyService) Greetings() string {
+func (s *MyService) Greetings() string {
 	return fmt.Sprintf("sentence: %s, mult: %d", s.greeter.greet(), s.mult)
 }
 
-func (s MyService) Close() error {
+func (s *MyService) Close() error {
 	return fmt.Errorf("myService closed")
 }

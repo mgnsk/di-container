@@ -1,7 +1,9 @@
 package di
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 )
@@ -75,35 +77,35 @@ func (build builder) withMultiplier(mult mymultiplier) builder {
 	}
 }
 
-func (build builder) build() (myservice, error) {
+func (build builder) build() (*myservice, error) {
 	s := &myservice{}
 	build(s)
-	return *s, nil
+	return s, nil
 }
 
-func (s myservice) greetings() string {
+func (s *myservice) greetings() string {
 	return fmt.Sprintf("sentence: %s, mult: %d, factory: %s", s.greeter.greet(), s.mult, s.f())
 }
 
-func (s myservice) Close() error {
-	return fmt.Errorf("myservice closed")
+func (s *myservice) Close() error {
+	return io.EOF
 }
 
 func TestMissingProvider(t *testing.T) {
 	c := NewContainer()
 
 	// Interface types must be declared with new().
-	c.Register(new(greeter), newMyGreeter)
+	c.Register((*greeter)(nil), newMyGreeter)
 
 	// All non-pointer and non-interface types must be declared as a zero value.
-	c.Register(new(mysentence), newMySentence)
-	c.Register(new(mymultiplier), newMyMultiplier)
+	c.Register((*mysentence)(nil), newMySentence)
+	c.Register((*mymultiplier)(nil), newMyMultiplier)
 
-	c.Register(new(factory), newFactory)
+	c.Register((*factory)(nil), newFactory)
 
 	// For builders we create a provider wrapper which explicitly specifies
 	// which dependencies (mandatory and optional) we are using.
-	c.Register(new(myservice), func(g greeter, f factory, mult mymultiplier) (myservice, error) {
+	c.Register((**myservice)(nil), func(g greeter, f factory, mult mymultiplier) (*myservice, error) {
 		return newMyService(g, f).withMultiplier(mult).build()
 	})
 
@@ -117,15 +119,15 @@ func TestMissingProvider(t *testing.T) {
 func TestContainer(t *testing.T) {
 	c := NewContainer()
 
-	c.Register(new(greeter), newMyGreeter)
-	c.Register(new(mysentence), newMySentence)
-	c.Register(new(mymultiplier), newMyMultiplier)
-	c.Register(new(myservice), func(g greeter, f factory, mult mymultiplier) (myservice, error) {
+	c.Register((*greeter)(nil), newMyGreeter)
+	c.Register((*mysentence)(nil), newMySentence)
+	c.Register((*mymultiplier)(nil), newMyMultiplier)
+	c.Register((**myservice)(nil), func(g greeter, f factory, mult mymultiplier) (*myservice, error) {
 		return newMyService(g, f).withMultiplier(mult).build()
 	})
 
-	c.Register(new(myint), newMyInt)
-	c.Register(new(factory), newFactory)
+	c.Register((*myint)(nil), newMyInt)
+	c.Register((*factory)(nil), newFactory)
 
 	if err := c.Resolve(); err != nil {
 		t.Fatal(err)
@@ -136,17 +138,17 @@ func TestContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ig := c.Get(new(greeter)).(greeter)
+	ig := c.Get((*greeter)(nil)).(greeter)
 	if ig.greet() != "hello world 42!" {
 		t.Fatal("invalid sentence")
 	}
 
-	g := c.Get(&myservice{}).(myservice)
+	g := c.Get((**myservice)(nil)).(*myservice)
 	if g.greetings() != "sentence: hello world 42!, mult: 2, factory: test" {
 		t.Fatal("invalid greeting")
 	}
 
-	if errs := c.Close(); (<-errs).Error() != "myservice closed" {
-		t.Fatal("expected myservice closed error")
+	if err := c.Close(); !errors.Is(err, io.EOF) {
+		t.Fatal("expected io.EOF")
 	}
 }

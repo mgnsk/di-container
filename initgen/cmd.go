@@ -50,8 +50,15 @@ func Generate(register func(*di.Container)) {
 	curPkg := path.Base(GetCurrentPkg())
 
 	trimCurrentPkgPrefix := func(s string) string {
-		s = strings.TrimPrefix(s, "*")
+		isPointer := false
+		if tmp := strings.TrimPrefix(s, "*"); tmp != s {
+			s = tmp
+			isPointer = true
+		}
 		s = strings.TrimPrefix(s, curPkg+".")
+		if isPointer {
+			s = "*" + s
+		}
 		return s
 	}
 
@@ -62,21 +69,17 @@ func Generate(register func(*di.Container)) {
 	}
 
 	// Collect type dependencies.
-	typeDeps := make(map[string]*dep)
 	var order []*dep
 	c.Range(func(item *di.Item) {
 		d := &dep{
 			localType:       trimCurrentPkgPrefix(item.Typ.String()),
 			rawType:         trimPkgPrefix(item.Typ.String()),
-			deps:            make([]string, len(item.Node.Edges)),
 			providerReturns: item.Provider.Type().NumOut(),
 		}
-		for i, n := range item.Node.Edges {
-			depItem := n.Value.(*di.Item)
-			d.deps[i] = trimCurrentPkgPrefix(depItem.Typ.String())
+		for _, typ := range item.Deps {
+			d.deps = append(d.deps, trimCurrentPkgPrefix(typ.String()))
 		}
 		order = append(order, d)
-		typeDeps[d.localType] = d
 	})
 
 	// Parse source file.
@@ -136,7 +139,7 @@ func Generate(register func(*di.Container)) {
 
 		// Collect arguments for type provider function.
 		var providerArgs []string
-		for _, depName := range typeDeps[d.localType].deps {
+		for _, depName := range d.deps {
 			rawType := trimPkgPrefix(depName)
 			varName := strings.ToLower(rawType)
 			providerArgs = append(providerArgs, varName)
@@ -282,13 +285,13 @@ func parseNewFuncs(fset *token.FileSet, registers []registerCall) map[string]str
 		}
 
 		// Get the innermost ident name.
-		typeIdent := getInnermostIdent(r.f.Args[0])
+		typeIdent := getNonNilIdent(r.f.Args[0])
 
 		safeType := strings.Split(typeIdent, ".")
 		typeIdent = safeType[len(safeType)-1]
 
 		// Provider func ident.
-		providerIdent := getInnermostIdent(r.f.Args[1])
+		providerIdent := getNonNilIdent(r.f.Args[1])
 
 		funcs[typeIdent] = providerIdent
 	}
@@ -304,11 +307,14 @@ func parseFile(filename string) (*token.FileSet, *ast.File) {
 	return fset, node
 }
 
-func getInnermostIdent(node ast.Node) string {
+func getNonNilIdent(node ast.Node) string {
 	var ident string
 	astutil.Apply(node, func(c *astutil.Cursor) bool {
 		switch t := c.Node().(type) {
 		case *ast.Ident:
+			if t.Name == "nil" {
+				return false
+			}
 			ident = t.Name
 			if se, ok := c.Parent().(*ast.SelectorExpr); ok {
 				if x, ok := se.X.(*ast.Ident); ok {

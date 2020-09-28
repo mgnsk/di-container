@@ -1,31 +1,75 @@
 package di
 
 import (
+	"container/heap"
 	"fmt"
 	"io"
 	"reflect"
-	"sync"
 
-	"github.com/mgnsk/di-container/dag"
+	"github.com/hashicorp/go-multierror"
 )
 
-// Item represents a single item which may depend on other nodes.
+// An Item is something we manage in a priority queue.
 type Item struct {
-	// Type of the item.
-	Typ reflect.Type
-	// Provider function for item type.
+	Typ      reflect.Type
 	Provider reflect.Value
-	// The built value of this item.
-	Value reflect.Value
-	// Graph node of the item.
-	Node *dag.Node
+	Value    interface{}
+	Deps     []reflect.Type
+	index    int // The index of the item in the heap.
+}
+
+func (item *Item) hasDep(typ reflect.Type) bool {
+	for _, t := range item.Deps {
+		if t == typ {
+			return true
+		}
+	}
+	return false
+}
+
+// A pqueue implements heap.Interface and holds Items.
+type pqueue []*Item
+
+func (pq pqueue) Len() int { return len(pq) }
+
+func (pq pqueue) Less(i, j int) bool {
+	if pq[j].hasDep(pq[i].Typ) {
+		// right depends on left
+		return true
+	}
+	if pq[i].hasDep(pq[j].Typ) {
+		// left depends on right
+		return false
+	}
+	return len(pq[i].Deps) < len(pq[j].Deps)
+}
+
+func (pq pqueue) Swap(i, j int) {
+	pq[i], pq[j] = pq[j], pq[i]
+	pq[i].index = i
+	pq[j].index = j
+}
+
+func (pq *pqueue) Push(x interface{}) {
+	n := len(*pq)
+	item := x.(*Item)
+	item.index = n
+	*pq = append(*pq, item)
+}
+
+func (pq *pqueue) Pop() interface{} {
+	old := *pq
+	n := len(old)
+	item := old[n-1]
+	old[n-1] = nil  // avoid memory leak
+	item.index = -1 // for safety
+	*pq = old[0 : n-1]
+	return item
 }
 
 // Container is a generic dependency container.
 type Container struct {
 	items map[reflect.Type]*Item
-	g     dag.Graph
-	built bool
 }
 
 // NewContainer creates an empty container.
@@ -74,31 +118,62 @@ func (c *Container) Register(typ, provider interface{}) {
 		Typ:      itemType,
 		Provider: reflect.ValueOf(provider),
 	}
-	item.Node = &dag.Node{Value: item}
 
 	c.items[itemType] = item
 }
 
 // Resolve the container.
 func (c *Container) Resolve() error {
-	if err := c.resolve(); err != nil {
-		return err
+	for _, item := range c.items {
+		providerType := item.Provider.Type()
+		// Range through provider arguments (dependencies of the node).
+		for i := 0; i < providerType.NumIn(); i++ {
+			if depItem, ok := c.items[providerType.In(i)]; ok {
+				// An item with this type was already registered, add it as an edge.
+				item.Deps = append(item.Deps, depItem.Typ)
+			} else {
+				return fmt.Errorf("Missing provider for type '%s'", providerType.In(i))
+			}
+		}
 	}
 	return nil
 }
 
 // Range over the container items in dependency order.
 func (c *Container) Range(f func(item *Item)) {
-	for _, n := range c.g {
-		f(n.Value.(*Item))
+	pq := c.heap()
+	for pq.Len() > 0 {
+		f(heap.Pop(pq).(*Item))
 	}
 }
 
 // Build the container.
 func (c *Container) Build() error {
-	if err := c.build(); err != nil {
-		return err
+	pq := c.heap()
+	for pq.Len() > 0 {
+		// Populate the dependencies (arguments) of the item provider function.
+		var args []reflect.Value
+		item := heap.Pop(pq).(*Item)
+		providerType := item.Provider.Type()
+
+		for i := 0; i < providerType.NumIn(); i++ {
+			val := c.items[providerType.In(i)].Value
+			args = append(args, reflect.ValueOf(val))
+		}
+
+		// Call the provider.
+		result := item.Provider.Call(args)
+		if len(result) == 2 && !result[1].IsNil() {
+			// We hardcoded max 2 return types for the provider.
+			// The second value is the error.
+			return result[1].Interface().(error)
+		}
+		if !result[0].IsValid() {
+			panic("invalid value")
+		}
+		item.Value = result[0].Interface()
 	}
+
 	return nil
 }
 
@@ -109,81 +184,29 @@ func (c *Container) Get(typ interface{}) interface{} {
 	if !ok {
 		panic(fmt.Errorf("container: item with type '%T' not found", typ))
 	}
-	return item.Value.Interface()
+	return item.Value
 }
 
-// Close the container in graph order. If any item implements io.Closer, it will be closed.
-func (c *Container) Close() <-chan error {
-	var wg sync.WaitGroup
-	errs := make(chan error)
+// Close the container. If any item implements io.Closer, it will be closed.
+func (c *Container) Close() error {
+	g := multierror.Group{}
 	c.Range(func(item *Item) {
-		if closer, ok := item.Value.Interface().(io.Closer); ok {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				if err := closer.Close(); err != nil {
-					errs <- err
-				}
-			}()
+		if closer, ok := item.Value.(io.Closer); ok {
+			g.Go(closer.Close)
 		}
 	})
-	go func() {
-		wg.Wait()
-		close(errs)
-	}()
-
-	return errs
+	return g.Wait().ErrorOrNil()
 }
 
-func (c *Container) resolve() error {
+func (c *Container) heap() heap.Interface {
+	pq := make(pqueue, len(c.items))
+	i := 0
 	for _, item := range c.items {
-		providerType := item.Provider.Type()
-		// Range through provider arguments (dependencies of the node).
-		for i := 0; i < providerType.NumIn(); i++ {
-			if depItem, ok := c.items[providerType.In(i)]; ok {
-				// An item with this type was already registered, add it as an edge.
-				item.Node.Edges = append(item.Node.Edges, depItem.Node)
-			} else {
-				return fmt.Errorf("Missing provider for type '%s'", providerType.In(i))
-			}
-		}
-
-		c.g = append(c.g, item.Node)
+		pq[i] = item
+		i++
 	}
-
-	// Sort the dependency graph.
-	if err := c.g.Resolve(); err != nil {
-		// Empty graph or cycle detected.
-		return err
-	}
-
-	return nil
-}
-
-func (c *Container) build() error {
-	for _, n := range c.g {
-		// Populate the dependencies (arguments) of the provider function.
-		var args []reflect.Value
-		item := n.Value.(*Item)
-		providerType := item.Provider.Type()
-
-		for i := 0; i < providerType.NumIn(); i++ {
-			// Since the graph is sorted in dependency order,
-			// we know the item is built already.
-			args = append(args, c.items[providerType.In(i)].Value)
-		}
-
-		result := item.Provider.Call(args)
-		if len(result) == 2 && !result[1].IsNil() {
-			// We hardcoded max 2 return types for the provider.
-			// The second value is the error.
-			return result[1].Interface().(error)
-		}
-
-		item.Value = result[0]
-	}
-
-	return nil
+	heap.Init(&pq)
+	return &pq
 }
 
 func reflectItem(typ interface{}) reflect.Type {
@@ -194,7 +217,7 @@ func reflectItem(typ interface{}) reflect.Type {
 
 	tp := itemValue.Type()
 	if tp.Kind() != reflect.Ptr {
-		panic(fmt.Errorf("container: specify type '%T' as new(T)", typ))
+		panic(fmt.Errorf("container: type '%T' must be passed as a pointer", typ))
 	}
 
 	return tp.Elem()

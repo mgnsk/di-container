@@ -11,11 +11,12 @@ import (
 // Generate registers a container for code generation.
 func Generate() {
 	initgen.Generate(func(c *di.Container) {
-		c.Register(new(greeter), newMyGreeter)
-		c.Register(new(mySentence), newMySentence)
-		c.Register(new(constants.MyMultiplier), constants.NewMyMultiplier)
-		c.Register(new(MyService), myServiceProvider)
-		c.Register(new(constants.MyInt), constants.NewMyInt)
-		c.Register(new(factory), newFactory)
+		// pointer to an interface
+		c.Register((*greeter)(nil), newMyGreeter)
+		c.Register((*mySentence)(nil), newMySentence)
+		c.Register((*constants.MyMultiplier)(nil), constants.NewMyMultiplier)
+		c.Register((**MyService)(nil), myServiceProvider)
+		c.Register((*constants.MyInt)(nil), constants.NewMyInt)
+		c.Register((*factory)(nil), newFactory)
 	})
 }
