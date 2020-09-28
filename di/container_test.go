@@ -1,9 +1,7 @@
 package di
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"strings"
 	"testing"
 )
@@ -87,10 +85,6 @@ func (s *myservice) greetings() string {
 	return fmt.Sprintf("sentence: %s, mult: %d, factory: %s", s.greeter.greet(), s.mult, s.f())
 }
 
-func (s *myservice) Close() error {
-	return io.EOF
-}
-
 func TestMissingProvider(t *testing.T) {
 	c := NewContainer()
 
@@ -146,9 +140,5 @@ func TestContainer(t *testing.T) {
 	g := c.Get((**myservice)(nil)).(*myservice)
 	if g.greetings() != "sentence: hello world 42!, mult: 2, factory: test" {
 		t.Fatal("invalid greeting")
-	}
-
-	if err := c.Close(); !errors.Is(err, io.EOF) {
-		t.Fatal("expected io.EOF")
 	}
 }

@@ -3,10 +3,7 @@ package di
 import (
 	"container/heap"
 	"fmt"
-	"io"
 	"reflect"
-
-	"github.com/hashicorp/go-multierror"
 )
 
 // An Item is something we manage in a priority queue.
@@ -185,17 +182,6 @@ func (c *Container) Get(typ interface{}) interface{} {
 		panic(fmt.Errorf("container: item with type '%T' not found", typ))
 	}
 	return item.Value
-}
-
-// Close the container. If any item implements io.Closer, it will be closed.
-func (c *Container) Close() error {
-	g := multierror.Group{}
-	c.Range(func(item *Item) {
-		if closer, ok := item.Value.(io.Closer); ok {
-			g.Go(closer.Close)
-		}
-	})
-	return g.Wait().ErrorOrNil()
 }
 
 func (c *Container) heap() heap.Interface {
