@@ -17,21 +17,18 @@ type Node struct {
 
 // Resolve sorts the graph using depth-first search.
 func (g *Graph) Resolve() error {
-	unresolved := *g
-	if len(unresolved) == 0 {
-		return errors.New("empty graph")
-	}
-
 	var resolved Graph
-	prev := len(unresolved)
-	for len(unresolved) > 0 {
-		if err := visit(unresolved[0], &unresolved, &resolved); err != nil {
+
+	prev := len(*g)
+	for prev > 0 {
+		if err := visit((*g)[0], g, &resolved); err != nil {
 			return err
 		}
-		if len(unresolved) == prev {
+		newLen := len(*g)
+		if newLen == prev {
 			return errors.New("invalid graph")
 		}
-		prev = len(unresolved)
+		prev = newLen
 	}
 
 	*g = resolved

@@ -1,9 +1,10 @@
 package di
 
 import (
-	"container/heap"
 	"fmt"
 	"reflect"
+
+	"github.com/mgnsk/di-container/dag"
 )
 
 // An Item is something we manage in a priority queue.
@@ -11,62 +12,13 @@ type Item struct {
 	Typ      reflect.Type
 	Provider reflect.Value
 	Value    interface{}
-	Deps     []reflect.Type
-	index    int // The index of the item in the heap.
-}
-
-func (item *Item) hasDep(typ reflect.Type) bool {
-	for _, t := range item.Deps {
-		if t == typ {
-			return true
-		}
-	}
-	return false
-}
-
-// A pqueue implements heap.Interface and holds Items.
-type pqueue []*Item
-
-func (pq pqueue) Len() int { return len(pq) }
-
-func (pq pqueue) Less(i, j int) bool {
-	if pq[j].hasDep(pq[i].Typ) {
-		// right depends on left
-		return true
-	}
-	if pq[i].hasDep(pq[j].Typ) {
-		// left depends on right
-		return false
-	}
-	return len(pq[i].Deps) < len(pq[j].Deps)
-}
-
-func (pq pqueue) Swap(i, j int) {
-	pq[i], pq[j] = pq[j], pq[i]
-	pq[i].index = i
-	pq[j].index = j
-}
-
-func (pq *pqueue) Push(x interface{}) {
-	n := len(*pq)
-	item := x.(*Item)
-	item.index = n
-	*pq = append(*pq, item)
-}
-
-func (pq *pqueue) Pop() interface{} {
-	old := *pq
-	n := len(old)
-	item := old[n-1]
-	old[n-1] = nil  // avoid memory leak
-	item.index = -1 // for safety
-	*pq = old[0 : n-1]
-	return item
+	Node     *dag.Node
 }
 
 // Container is a generic dependency container.
 type Container struct {
 	items map[reflect.Type]*Item
+	deps  dag.Graph
 }
 
 // NewContainer creates an empty container.
@@ -77,12 +29,10 @@ func NewContainer() *Container {
 }
 
 // Register registers a provider function for type typ.
-// Interfaces or pointers for typ must be passed with new(T).
-// Other types must be passed as the zero value.
-// provider must return the dependency type as the first return type
+// provider must return the dependency pointed by typ as the first return type
 // and possibly an error as the second return type.
 func (c *Container) Register(typ, provider interface{}) {
-	itemType := reflectItem(typ)
+	itemType := reflectType(typ)
 	if _, ok := c.items[itemType]; ok {
 		panic(fmt.Errorf("container: item type '%T' is already registered", typ))
 	}
@@ -114,9 +64,12 @@ func (c *Container) Register(typ, provider interface{}) {
 	item := &Item{
 		Typ:      itemType,
 		Provider: reflect.ValueOf(provider),
+		Node:     &dag.Node{},
 	}
 
+	item.Node.Value = item
 	c.items[itemType] = item
+	c.deps = append(c.deps, item.Node)
 }
 
 // Resolve the container.
@@ -127,30 +80,28 @@ func (c *Container) Resolve() error {
 		for i := 0; i < providerType.NumIn(); i++ {
 			if depItem, ok := c.items[providerType.In(i)]; ok {
 				// An item with this type was already registered, add it as an edge.
-				item.Deps = append(item.Deps, depItem.Typ)
+				item.Node.Edges = append(item.Node.Edges, depItem.Node)
 			} else {
 				return fmt.Errorf("Missing provider for type '%s'", providerType.In(i))
 			}
 		}
 	}
-	return nil
+	return c.deps.Resolve()
 }
 
 // Range over the container items in dependency order.
 func (c *Container) Range(f func(item *Item)) {
-	pq := c.heap()
-	for pq.Len() > 0 {
-		f(heap.Pop(pq).(*Item))
+	for _, item := range c.deps {
+		f(item.Value.(*Item))
 	}
 }
 
 // Build the container.
 func (c *Container) Build() error {
-	pq := c.heap()
-	for pq.Len() > 0 {
+	for _, item := range c.deps {
 		// Populate the dependencies (arguments) of the item provider function.
 		var args []reflect.Value
-		item := heap.Pop(pq).(*Item)
+		item := item.Value.(*Item)
 		providerType := item.Provider.Type()
 
 		for i := 0; i < providerType.NumIn(); i++ {
@@ -176,7 +127,7 @@ func (c *Container) Build() error {
 
 // Get returns a built dependency by type.
 func (c *Container) Get(typ interface{}) interface{} {
-	tp := reflectItem(typ)
+	tp := reflectType(typ)
 	item, ok := c.items[tp]
 	if !ok {
 		panic(fmt.Errorf("container: item with type '%T' not found", typ))
@@ -184,26 +135,16 @@ func (c *Container) Get(typ interface{}) interface{} {
 	return item.Value
 }
 
-func (c *Container) heap() heap.Interface {
-	pq := make(pqueue, len(c.items))
-	i := 0
-	for _, item := range c.items {
-		pq[i] = item
-		i++
-	}
-	heap.Init(&pq)
-	return &pq
-}
+func reflectType(typ interface{}) reflect.Type {
+	val := reflect.ValueOf(typ)
+	tp := val.Type()
 
-func reflectItem(typ interface{}) reflect.Type {
-	itemValue := reflect.ValueOf(typ)
-	if !itemValue.IsValid() {
-		panic(fmt.Errorf("container: typ '%T' must be a valid value", typ))
-	}
-
-	tp := itemValue.Type()
 	if tp.Kind() != reflect.Ptr {
 		panic(fmt.Errorf("container: type '%T' must be passed as a pointer", typ))
+	}
+
+	if !val.IsNil() {
+		panic(fmt.Errorf("container: type '%T' must be nil", typ))
 	}
 
 	return tp.Elem()

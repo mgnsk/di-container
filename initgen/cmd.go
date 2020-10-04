@@ -76,8 +76,8 @@ func Generate(register func(*di.Container)) {
 			rawType:         trimPkgPrefix(item.Typ.String()),
 			providerReturns: item.Provider.Type().NumOut(),
 		}
-		for _, typ := range item.Deps {
-			d.deps = append(d.deps, trimCurrentPkgPrefix(typ.String()))
+		for _, edge := range item.Node.Edges {
+			d.deps = append(d.deps, trimCurrentPkgPrefix(edge.Value.(*di.Item).Typ.String()))
 		}
 		order = append(order, d)
 	})

@@ -110,6 +110,30 @@ func TestMissingProvider(t *testing.T) {
 	}
 }
 
+func TestDependencyLoop(t *testing.T) {
+	c := NewContainer()
+
+	intProvider := func(b []byte) int {
+		return 0
+	}
+
+	stringProvider := func(i int) string {
+		return fmt.Sprintf("%d", i)
+	}
+
+	bytesProvider := func(s string) []byte {
+		return []byte(s)
+	}
+
+	c.Register((*int)(nil), intProvider)
+	c.Register((*[]byte)(nil), bytesProvider)
+	c.Register((*string)(nil), stringProvider)
+
+	if err := c.Resolve(); err == nil {
+		t.Fatal("expected dependency loop error")
+	}
+}
+
 func TestContainer(t *testing.T) {
 	c := NewContainer()
 
