@@ -9,7 +9,7 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/mgnsk/di-container/initgen"
+	"github.com/mgnsk/di-container/di"
 	"github.com/moznion/gowrtr/generator"
 )
 
@@ -27,7 +27,7 @@ func main() {
 	check(err)
 
 	// Package which is being generated.
-	pkg := initgen.GetCurrentPkg()
+	pkg := di.GetCurrentPkg()
 
 	// First we generate the temporary generator wrapper which is run later.
 	g := generator.NewRoot(

@@ -5,17 +5,16 @@ import (
 	"reflect"
 	"sync/atomic"
 
-	"github.com/mgnsk/di-container/dag"
+	"github.com/mgnsk/di-container/internal/dag"
 )
 
 // An Item is something we manage in a priority queue.
 type Item struct {
-	Provider reflect.Value
-	Value    interface{}
-	Node     *dag.Node
-	// Index is used to track the registration order.
-	// TODO somehow work around this
-	Index uint64
+	Value interface{}
+
+	provider reflect.Value
+	node     *dag.Node
+	index    uint64
 }
 
 // Container is a generic dependency container.
@@ -60,25 +59,25 @@ func (c *Container) Register(provider interface{}) {
 	index := atomic.AddUint64(&c.index, 1)
 
 	item := &Item{
-		Provider: reflect.ValueOf(provider),
-		Node:     &dag.Node{},
-		Index:    index - 1,
+		provider: reflect.ValueOf(provider),
+		node:     &dag.Node{},
+		index:    index - 1,
 	}
 
-	item.Node.Value = item
+	item.node.Value = item
 	c.items[typ] = item
-	c.deps = append(c.deps, item.Node)
+	c.deps = append(c.deps, item.node)
 }
 
 // Resolve the container.
 func (c *Container) Resolve() error {
 	for _, item := range c.items {
-		providerType := item.Provider.Type()
+		providerType := item.provider.Type()
 		// Range through provider arguments (dependencies of the node).
 		for i := 0; i < providerType.NumIn(); i++ {
 			if depItem, ok := c.items[providerType.In(i)]; ok {
 				// An item with this type was already registered, add it as an edge.
-				item.Node.Edges = append(item.Node.Edges, depItem.Node)
+				item.node.Edges = append(item.node.Edges, depItem.node)
 			} else {
 				return fmt.Errorf("Missing provider for type '%s'", providerType.In(i))
 			}
@@ -102,7 +101,7 @@ func (c *Container) Build() error {
 		// Populate the dependencies (arguments) of the item provider function.
 		var args []reflect.Value
 		item := item.Value.(*Item)
-		providerType := item.Provider.Type()
+		providerType := item.provider.Type()
 
 		for i := 0; i < providerType.NumIn(); i++ {
 			val := c.items[providerType.In(i)].Value
@@ -110,7 +109,7 @@ func (c *Container) Build() error {
 		}
 
 		// Call the provider.
-		result := item.Provider.Call(args)
+		result := item.provider.Call(args)
 		if len(result) == 2 && !result[1].IsNil() {
 			// We hardcoded max 2 return types for the provider.
 			// The second value is the error.
@@ -119,6 +118,7 @@ func (c *Container) Build() error {
 		if !result[0].IsValid() {
 			panic("invalid value")
 		}
+
 		item.Value = result[0].Interface()
 	}
 

@@ -1,4 +1,4 @@
-package initgen
+package di
 
 import (
 	"bytes"
@@ -15,7 +15,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/mgnsk/di-container/di"
 	"github.com/moznion/gowrtr/generator"
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -98,15 +97,15 @@ func (t *initter) callName() string {
 	return prefix + t.varName()
 }
 
-func createInits(c *di.Container) []initter {
+func createInits(c *Container) []initter {
 	var inits []initter
 
-	c.Range(func(item *di.Item) bool {
-		deps := make([]reflect.Type, len(item.Node.Edges))
-		for i, edge := range item.Node.Edges {
-			deps[i] = edge.Value.(*di.Item).Provider.Type()
+	c.Range(func(item *Item) bool {
+		deps := make([]reflect.Type, len(item.node.Edges))
+		for i, edge := range item.node.Edges {
+			deps[i] = edge.Value.(*Item).provider.Type()
 		}
-		inits = append(inits, newInitFunc(item.Provider.Type(), deps))
+		inits = append(inits, newInitFunc(item.provider.Type(), deps))
 		return true
 	})
 
@@ -114,8 +113,8 @@ func createInits(c *di.Container) []initter {
 }
 
 // Generate code for type initializers in the context of the resolved container.
-func Generate(register func(*di.Container)) {
-	c := di.NewContainer()
+func Generate(register func(*Container)) {
+	c := NewContainer()
 	register(c)
 	check(c.Resolve())
 
@@ -160,9 +159,9 @@ func Generate(register func(*di.Container)) {
 		// check the ordering of Register calls.
 		var index uint64
 		typ := f.typ
-		c.Range(func(item *di.Item) bool {
-			if typ == item.Provider.Type().Out(0) {
-				index = item.Index
+		c.Range(func(item *Item) bool {
+			if typ == item.provider.Type().Out(0) {
+				index = item.index
 				return false
 			}
 			return true
@@ -233,7 +232,7 @@ func parseImports(fset *token.FileSet, f *ast.File) []string {
 				switch t := c.Node().(type) {
 				case *ast.BasicLit:
 					imp := strings.Trim(t.Value, `"`)
-					if imp != "github.com/mgnsk/di-container/di" && imp != "github.com/mgnsk/di-container/initgen" {
+					if imp != "github.com/mgnsk/di-container/di" {
 						imports = append(imports, imp)
 						return false
 					}
@@ -277,7 +276,7 @@ func parsecontainers(node ast.Node) []container {
 	astutil.Apply(node, func(c *astutil.Cursor) bool {
 		switch t := c.Node().(type) {
 		case *ast.CallExpr:
-			if isFunction(t, "initgen", "Generate") {
+			if isFunction(t, "di", "Generate") {
 				containers = append(containers, container{
 					f: t,
 				})
