@@ -8,7 +8,7 @@ import (
 	"github.com/mgnsk/di-container/internal/dag"
 )
 
-// An Item is something we manage in a priority queue.
+// An Item is a container item.
 type Item struct {
 	Value interface{}
 
@@ -31,9 +31,7 @@ func NewContainer() *Container {
 	}
 }
 
-// Register registers a provider function for type typ.
-// provider must return the dependency pointed by typ as the first return type
-// and possibly an error as the second return type.
+// Register registers a provider function for a type.
 func (c *Container) Register(provider interface{}) {
 	providerType := reflect.TypeOf(provider)
 	if providerType.Kind() != reflect.Func {
