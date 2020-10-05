@@ -6,43 +6,43 @@ import (
 )
 
 func InitMyInt() constants.MyInt {
-	myint := constants.NewMyInt()
-	return myint
+	MyInt := constants.NewMyInt()
+	return MyInt
 }
 
 func InitMyMultiplier() constants.MyMultiplier {
-	mymultiplier := constants.NewMyMultiplier()
-	return mymultiplier
+	MyMultiplier := constants.NewMyMultiplier()
+	return MyMultiplier
 }
 
-func initMySentence() mySentence {
-	myint := InitMyInt()
-	mymultiplier := InitMyMultiplier()
-	mysentence := newMySentence(myint, mymultiplier)
-	return mysentence
+func initmySentence() mySentence {
+	MyInt := InitMyInt()
+	MyMultiplier := InitMyMultiplier()
+	mySentence := newMySentence(MyInt, MyMultiplier)
+	return mySentence
 }
 
-func initGreeter() greeter {
-	mysentence := initMySentence()
-	greeter, err := newMyGreeter(mysentence)
+func initgreeter() greeter {
+	mySentence := initmySentence()
+	greeter, err := newGreeter(mySentence)
 	if err != nil {
 		panic(err)
 	}
 	return greeter
 }
 
-func initFactory() factory {
+func initfactory() factory {
 	factory := newFactory()
 	return factory
 }
 
 func InitMyService() *MyService {
-	greeter := initGreeter()
-	factory := initFactory()
-	mymultiplier := InitMyMultiplier()
-	myservice, err := myServiceProvider(greeter, factory, mymultiplier)
+	greeter := initgreeter()
+	factory := initfactory()
+	MyMultiplier := InitMyMultiplier()
+	MyService, err := newMyServiceProvider(greeter, factory, MyMultiplier)
 	if err != nil {
 		panic(err)
 	}
-	return myservice
+	return MyService
 }

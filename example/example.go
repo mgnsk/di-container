@@ -1,5 +1,7 @@
 package example
 
+// TODO go generate
+
 import (
 	"fmt"
 
@@ -68,7 +70,11 @@ func (build builder) build() (*MyService, error) {
 	return s, nil
 }
 
-func myServiceProvider(g greeter, f factory, mult constants.MyMultiplier) (*MyService, error) {
+func newGreeter(s mySentence) (greeter, error) {
+	return newMyGreeter(s)
+}
+
+func newMyServiceProvider(g greeter, f factory, mult constants.MyMultiplier) (*MyService, error) {
 	return newMyService(g, f).withMultiplier(mult).build()
 }
 

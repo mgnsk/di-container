@@ -3,22 +3,26 @@ package di
 import (
 	"fmt"
 	"reflect"
+	"sync/atomic"
 
 	"github.com/mgnsk/di-container/dag"
 )
 
 // An Item is something we manage in a priority queue.
 type Item struct {
-	Typ      reflect.Type
 	Provider reflect.Value
 	Value    interface{}
 	Node     *dag.Node
+	// Index is used to track the registration order.
+	// TODO somehow work around this
+	Index uint64
 }
 
 // Container is a generic dependency container.
 type Container struct {
 	items map[reflect.Type]*Item
 	deps  dag.Graph
+	index uint64
 }
 
 // NewContainer creates an empty container.
@@ -31,12 +35,7 @@ func NewContainer() *Container {
 // Register registers a provider function for type typ.
 // provider must return the dependency pointed by typ as the first return type
 // and possibly an error as the second return type.
-func (c *Container) Register(typ, provider interface{}) {
-	itemType := reflectType(typ)
-	if _, ok := c.items[itemType]; ok {
-		panic(fmt.Errorf("container: item type '%T' is already registered", typ))
-	}
-
+func (c *Container) Register(provider interface{}) {
 	providerType := reflect.TypeOf(provider)
 	if providerType.Kind() != reflect.Func {
 		panic("container: provider must be a function")
@@ -45,12 +44,9 @@ func (c *Container) Register(typ, provider interface{}) {
 		panic("container: provider must return at least 1 value and not more than 2")
 	}
 
-	if !providerType.Out(0).AssignableTo(itemType) {
-		panic(fmt.Errorf(
-			"container: the type '%s' of the first return value of provider must be assignable to typ '%s'",
-			providerType.Out(0),
-			itemType,
-		))
+	typ := providerType.Out(0)
+	if _, ok := c.items[typ]; ok {
+		panic(fmt.Errorf("container: item type '%T' is already registered", typ))
 	}
 
 	// If the function returns 2 values, the second must be an error.
@@ -61,14 +57,16 @@ func (c *Container) Register(typ, provider interface{}) {
 		}
 	}
 
+	index := atomic.AddUint64(&c.index, 1)
+
 	item := &Item{
-		Typ:      itemType,
 		Provider: reflect.ValueOf(provider),
 		Node:     &dag.Node{},
+		Index:    index - 1,
 	}
 
 	item.Node.Value = item
-	c.items[itemType] = item
+	c.items[typ] = item
 	c.deps = append(c.deps, item.Node)
 }
 
@@ -90,9 +88,11 @@ func (c *Container) Resolve() error {
 }
 
 // Range over the container items in dependency order.
-func (c *Container) Range(f func(item *Item)) {
+func (c *Container) Range(f func(item *Item) bool) {
 	for _, item := range c.deps {
-		f(item.Value.(*Item))
+		if f(item.Value.(*Item)) == false {
+			break
+		}
 	}
 }
 

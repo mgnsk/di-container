@@ -88,18 +88,15 @@ func (s *myservice) greetings() string {
 func TestMissingProvider(t *testing.T) {
 	c := NewContainer()
 
-	// Interface types must be declared with new().
-	c.Register((*greeter)(nil), newMyGreeter)
+	c.Register(newMySentence)
+	c.Register(newMyMultiplier)
+	c.Register(newFactory)
 
-	// All non-pointer and non-interface types must be declared as a zero value.
-	c.Register((*mysentence)(nil), newMySentence)
-	c.Register((*mymultiplier)(nil), newMyMultiplier)
+	c.Register(func(s mysentence) (greeter, error) {
+		return newMyGreeter(s)
+	})
 
-	c.Register((*factory)(nil), newFactory)
-
-	// For builders we create a provider wrapper which explicitly specifies
-	// which dependencies (mandatory and optional) we are using.
-	c.Register((**myservice)(nil), func(g greeter, f factory, mult mymultiplier) (*myservice, error) {
+	c.Register(func(g greeter, f factory, mult mymultiplier) (*myservice, error) {
 		return newMyService(g, f).withMultiplier(mult).build()
 	})
 
@@ -125,9 +122,9 @@ func TestDependencyLoop(t *testing.T) {
 		return []byte(s)
 	}
 
-	c.Register((*int)(nil), intProvider)
-	c.Register((*[]byte)(nil), bytesProvider)
-	c.Register((*string)(nil), stringProvider)
+	c.Register(intProvider)
+	c.Register(bytesProvider)
+	c.Register(stringProvider)
 
 	if err := c.Resolve(); err == nil {
 		t.Fatal("expected dependency loop error")
@@ -137,15 +134,19 @@ func TestDependencyLoop(t *testing.T) {
 func TestContainer(t *testing.T) {
 	c := NewContainer()
 
-	c.Register((*greeter)(nil), newMyGreeter)
-	c.Register((*mysentence)(nil), newMySentence)
-	c.Register((*mymultiplier)(nil), newMyMultiplier)
-	c.Register((**myservice)(nil), func(g greeter, f factory, mult mymultiplier) (*myservice, error) {
+	c.Register(newMySentence)
+	c.Register(newMyMultiplier)
+
+	c.Register(func(s mysentence) (greeter, error) {
+		return newMyGreeter(s)
+	})
+
+	c.Register(func(g greeter, f factory, mult mymultiplier) (*myservice, error) {
 		return newMyService(g, f).withMultiplier(mult).build()
 	})
 
-	c.Register((*myint)(nil), newMyInt)
-	c.Register((*factory)(nil), newFactory)
+	c.Register(newMyInt)
+	c.Register(newFactory)
 
 	if err := c.Resolve(); err != nil {
 		t.Fatal(err)
