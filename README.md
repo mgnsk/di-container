@@ -1,26 +1,19 @@
 ## DI container for Go
 
-Another Go DI container with optional init code generator.
+A simpler compile-time dependency injection for go. Inspired by [Wire](https://github.com/google/wire)
 
 Installation: `go get github.com/mgnsk/di-container/cmd/initgen`
 
-Also needs to have `goimports` installed `go get golang.org/x/tools/cmd/goimports`.
+Also needs to have `goimports` installed `go get golang.org/x/tools/cmd/goimports`. [TODO]
+
+### Usage
+* Create an `initgen.go` file in the package you wish to generate. It must contain the registration of the provider functions for your types/interfaces.
+* Run `initgen`.
+* Use the generated `init.go` file.
+
+It is also possible to use the container dynamically on runtime. In that case it acts like a singleton container. See the tests in `container`.
 
 ### Example
-Given an `initgen.go` it generates an `init.go`.
-
-It is possible to use the container on runtime. See the tests in `container`.
-
-It reports errors when a type is missing a provider function.
-```
-go generate -x ./... (if you use the go:generate comment) or run initgen manually in the package dir you wish to generate.
-initgen
-panic: Missing provider for type 'constants.MyInt'
-...
-```
-Types must be registered as pointers to their types. This enables registering interface providers which return any value implementing the interface.
-
-Example shown in `example` dir. In general: install `initgen` binary, create an `initgen.go` file in the package and run `go generate ./...` and 
-`go run example/cmd/main.go`
+Example shown in `example` dir.
 
 Documentation and design in progress
