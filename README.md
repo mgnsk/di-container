@@ -1,6 +1,6 @@
 ## DI container for Go
 
-A simpler compile-time dependency injection for go. Inspired by [Wire](https://github.com/google/wire) and [Symfony Service Container](https://symfony.com/doc/current/service_container.html)
+A simpler compile-time dependency injection and a runtime singleton container. Inspired by [Wire](https://github.com/google/wire) and [Symfony Service Container](https://symfony.com/doc/current/service_container.html)
 
 Installation: `go get github.com/mgnsk/di-container/cmd/initgen`
 
