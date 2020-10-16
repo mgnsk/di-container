@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -10,7 +11,6 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/mgnsk/di-container/di"
 	"github.com/moznion/gowrtr/generator"
 )
 
@@ -20,45 +20,54 @@ func check(err error) {
 	}
 }
 
+func getCurrentPkg() string {
+	pkgImport, err := exec.Command("go", "list", "-f", "{{.ImportPath}}", ".").Output()
+	check(err)
+
+	return string(bytes.TrimSpace(pkgImport))
+}
+
 func main() {
-	filename, err := filepath.Abs(filepath.Join(".", "initgen.go"))
+	cwd, err := os.Getwd()
 	check(err)
 
-	_, err = os.Stat(filename)
+	source := filepath.Join(cwd, "initgen.go")
+	target := filepath.Join(cwd, "init.go")
+	tmpDir := filepath.Join(cwd, "initgen")
+
+	_, err = os.Stat(source)
 	check(err)
 
-	// Package which is being generated.
-	pkg := di.GetCurrentPkg()
+	check(os.RemoveAll(tmpDir))
+	check(os.RemoveAll(target))
+	check(os.Mkdir(tmpDir, 0o755))
+	defer os.RemoveAll(tmpDir)
 
-	// First we generate the temporary generator wrapper which is run later.
-	g := generator.NewRoot(
-		generator.NewPackage("main"),
-		generator.NewImport(pkg),
-		generator.NewNewline(),
-	)
+	fmt.Printf("initgen: generating %s\n", target)
 
-	// Add a main function to run the Generate function provided by pkg.
-	g = g.AddStatements(
-		generator.NewFunc(
-			nil,
-			generator.NewFuncSignature("main"),
-		).AddStatements(generator.NewRawStatement(path.Base(pkg) + ".Generate()")),
-	).
-		Gofmt("-s").
-		Goimports()
+	pkg := getCurrentPkg()
+	g := generator.
+		NewRoot(
+			generator.NewPackage("main"),
+			generator.NewNewline(),
+			generator.NewImport(pkg),
+			generator.NewNewline(),
+		).
+		AddStatements(
+			generator.NewFunc(
+				nil,
+				generator.NewFuncSignature("main"),
+			).AddStatements(generator.NewRawStatement(path.Base(pkg) + ".Generate()")),
+		)
 
 	generated, err := g.Generate(0)
 	check(err)
 
-	tmp := filepath.Join(filepath.Dir(filename), "tmp")
-	check(os.Mkdir(tmp, 0o755))
-	defer os.RemoveAll(tmp)
-
-	mainFile := filepath.Join(".", "tmp", "main.go")
+	mainFile := filepath.Join(tmpDir, "main.go")
 	check(ioutil.WriteFile(mainFile, []byte(generated), 0o644))
 
 	// Run the container generator.
 	res, err := exec.Command("go", "run", mainFile).CombinedOutput()
-	fmt.Println(string(res))
+	fmt.Printf(string(res))
 	check(err)
 }

@@ -6,14 +6,9 @@ Installation: `go get github.com/mgnsk/di-container/cmd/initgen`
 
 Also needs to have `goimports` installed `go get golang.org/x/tools/cmd/goimports`. [TODO]
 
-### Usage
-* Create an `initgen.go` file in the package you wish to generate. It must contain the registration of the provider functions for your types/interfaces.
-* Run `initgen`.
-* Use the generated `init.go` file.
-
-It is also possible to use the container dynamically on runtime. In that case it acts like a singleton container. See the tests in `container`.
-
 ### Example
-Example shown in `example` dir.
+* `$ cd example`
+* `$ go generate`
+* Run the example app using the initializers: `$ go run cmd/main.go`
 
-Documentation and design in progress
+It is also possible to use the container dynamically on runtime. In that case it acts like a singleton container.

@@ -22,13 +22,11 @@ func initmySentence() mySentence {
 	return mySentence
 }
 
-func initgreeter() greeter {
+func initgreeter() (greeter, error) {
 	mySentence := initmySentence()
 	greeter, err := newGreeter(mySentence)
-	if err != nil {
-		panic(err)
-	}
-	return greeter
+	if err != nil { return nil, err }
+	return greeter, nil
 }
 
 func initfactory() factory {
@@ -36,13 +34,12 @@ func initfactory() factory {
 	return factory
 }
 
-func InitMyService() *MyService {
-	greeter := initgreeter()
+func InitMyService() (*MyService, error) {
+	greeter, err := initgreeter()
+	if err != nil { return nil, err }
 	factory := initfactory()
 	MyMultiplier := InitMyMultiplier()
 	MyService, err := newMyServiceProvider(greeter, factory, MyMultiplier)
-	if err != nil {
-		panic(err)
-	}
-	return MyService
+	if err != nil { return nil, err }
+	return MyService, nil
 }
