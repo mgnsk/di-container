@@ -4,8 +4,6 @@ Compile-time dependency injection and a runtime singleton container for go. Insp
 
 Installation: `go get github.com/mgnsk/di-container/cmd/initgen`
 
-Also needs to have `goimports` installed `go get golang.org/x/tools/cmd/goimports`. [TODO]
-
 ### Example
 * `$ cd example`
 * `$ go generate`
