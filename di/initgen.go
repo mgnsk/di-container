@@ -7,7 +7,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io/ioutil"
-	"os"
+	"log"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -29,7 +29,7 @@ func GetCurrentPkg() string {
 
 func check(err error) {
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
@@ -215,7 +215,7 @@ func Generate(register func(*Container)) {
 		panic(err)
 	}
 
-	check(ioutil.WriteFile(filepath.Join(".", "init.go"), []byte(generated), os.ModePerm))
+	check(ioutil.WriteFile(filepath.Join(".", "init.go"), []byte(generated), 0o644))
 
 	// Run goimports again, apparently sometimes it doesn't remove all unused imports and thus needs 2 passes.
 	_, err = exec.Command("goimports", "-w", "init.go").Output()

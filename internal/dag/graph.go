@@ -2,6 +2,7 @@ package dag
 
 import (
 	"errors"
+	"fmt"
 )
 
 // Graph is a directed acyclic graph.
@@ -19,7 +20,7 @@ func (n *Node) visit(unresolved *Graph, resolved *Graph) error {
 	if n.visited {
 		return nil
 	} else if n.current {
-		return errors.New("cycle detected") // TODO give more information
+		return fmt.Errorf("cycle detected on type '%T'", n.Value)
 	}
 
 	n.current = true

@@ -1,9 +1,10 @@
-// package initgen generates a container generator for the package in current working dir.
+// package initgen generates initializers for provider functions registered in the current working dir package.
 package main
 
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -15,7 +16,7 @@ import (
 
 func check(err error) {
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
@@ -50,15 +51,14 @@ func main() {
 	check(err)
 
 	tmp := filepath.Join(filepath.Dir(filename), "tmp")
-	os.RemoveAll(tmp)
-	check(os.Mkdir(tmp, os.ModePerm))
+	check(os.Mkdir(tmp, 0o755))
 	defer os.RemoveAll(tmp)
 
-	tmpMain := filepath.Join(".", "tmp", "main.go")
-	check(ioutil.WriteFile(tmpMain, []byte(generated), os.ModePerm))
+	mainFile := filepath.Join(".", "tmp", "main.go")
+	check(ioutil.WriteFile(mainFile, []byte(generated), 0o644))
 
 	// Run the container generator.
-	res, err := exec.Command("go", "run", tmpMain).CombinedOutput()
+	res, err := exec.Command("go", "run", mainFile).CombinedOutput()
 	fmt.Println(string(res))
 	check(err)
 }
